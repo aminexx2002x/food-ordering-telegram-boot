@@ -2,8 +2,6 @@ import logging
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler, ContextTypes, CallbackContext
 
-#this is amine commitf alhamudlzopepv,prevnrpvnrtbpgrpbn
-
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -247,8 +245,12 @@ async def handle_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
 
             # Send the order information to the chef
-            chef_message = await context.bot.send_message(chat_id=CHEF_CHAT_ID, text=order_info)
-            logger.info(f"Order sent to chef: {chef_message.message_id}")
+            for chef_chat_id in CHEF_CHAT_ID:
+                try:
+                    chef_message = await context.bot.send_message(chat_id=chef_chat_id, text=order_info)
+                    logger.info(f"Order sent to chef (chat ID {chef_chat_id}): {chef_message.message_id}")
+                except Exception as e:
+                    logger.error(f"Error sending order to chef (chat ID {chef_chat_id}): {e}")
 
             # Confirm the order with the user
             confirmation_message = (
