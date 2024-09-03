@@ -242,7 +242,6 @@ conv_handler = ConversationHandler(
 # Add the conversation handler to the application
 application.add_handler(CommandHandler('start', start))
 application.add_handler(conv_handler)
-
 # Set the webhook route for Flask
 @app.route(f'/{TOKEN}', methods=['POST'])
 def webhook():
@@ -251,12 +250,11 @@ def webhook():
     asyncio.run(application.process_update(update))
     return "ok"
 
-# Set up the webhook
+
 @app.route('/set_webhook', methods=['GET', 'POST'])
 def set_webhook():
     """Set the webhook for the bot."""
-    webhook_url = f'https://api.telegram.org/frescofood_bot/{TOKEN}'  # Replace with your actual domain
-
+    webhook_url = f'https://telegram-boot2-bc9f341457c0.herokuapp.com/{TOKEN}'
     success = asyncio.run(application.bot.set_webhook(webhook_url))
     if success:
         return "Webhook set successfully!"
@@ -264,4 +262,5 @@ def set_webhook():
         return "Failed to set webhook."
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
