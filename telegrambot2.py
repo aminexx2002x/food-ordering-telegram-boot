@@ -1,7 +1,10 @@
-import asyncio
+from flask import Flask, request
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ConversationHandler, ContextTypes, MessageHandler, filters
 import logging
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto, Update
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler, ContextTypes, CallbackContext
+import asyncio
+
+app = Flask(__name__)
 
 # Set up logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -15,20 +18,20 @@ MENU, ADD_NOTE, QUANTITY, NAME, ADDRESS, PHONE, CONFIRMATION = range(7)
 
 # Define the menu with prices, image paths, and descriptions
 menu = {
-    "Plat 01 (300DZD)": {"price": 300, "image":'https://imgur.com/YcG0Ayj', "description": "Description du plat 01"},
-    "Plat 02 (350DZD)": {"price": 350, "image":'https://imgur.com/RiQQ6c4' , "description": "Description du plat 02"},
-    "Plat 03 (350DZD)": {"price": 350, "image":'https://imgur.com/tQgPD5K' , "description": "Description du plat 03"},
-    "Plat 04 (400DZD)": {"price": 400, "image":'https://imgur.com/tVJKmCZ' , "description": "Description du plat 04"},
-    "Plat 05 (450DZD)": {"price": 450, "image":'https://imgur.com/iw4jmkJ' , "description": "Description du plat 05"},
-    "Plat 06 (500DZD)": {"price": 500, "image":'https://imgur.com/KVM0Ow0' , "description": "Description du plat 06"},
-    "Jus Citron Carott Banane (150DZD)": {"price": 150, "image":'https://imgur.com/I4bpC9m' , "description": "Description du jus 01"},
-    "Jus Mokhito (120DZD)": {"price": 120, "image":'https://imgur.com/SFj1e6r', "description": "Description du jus 02"},
-    "Muffins au chocolat (80DZD)":{"price":80, "image":'https://imgur.com/SEaqiFH', "description": "Description du snack"},
-    "Muffins au Confiture (80DZD)": {"price":80,"image":'https://imgur.com/ol2c6gm',"description":"Desciption du snack"},
+    "Plat 01 (300DZD)": {"price": 300, "image": 'https://imgur.com/YcG0Ayj', "description": "Description du plat 01"},
+    "Plat 02 (350DZD)": {"price": 350, "image": 'https://imgur.com/RiQQ6c4', "description": "Description du plat 02"},
+    "Plat 03 (350DZD)": {"price": 350, "image": 'https://imgur.com/tQgPD5K', "description": "Description du plat 03"},
+    "Plat 04 (400DZD)": {"price": 400, "image": 'https://imgur.com/tVJKmCZ', "description": "Description du plat 04"},
+    "Plat 05 (450DZD)": {"price": 450, "image": 'https://imgur.com/iw4jmkJ', "description": "Description du plat 05"},
+    "Plat 06 (500DZD)": {"price": 500, "image": 'https://imgur.com/KVM0Ow0', "description": "Description du plat 06"},
+    "Jus Citron Carott Banane (150DZD)": {"price": 150, "image": 'https://imgur.com/I4bpC9m', "description": "Description du jus 01"},
+    "Jus Mokhito (120DZD)": {"price": 120, "image": 'https://imgur.com/SFj1e6r', "description": "Description du jus 02"},
+    "Muffins au chocolat (80DZD)": {"price": 80, "image": 'https://imgur.com/SEaqiFH', "description": "Description du snack"},
+    "Muffins au Confiture (80DZD)": {"price": 80, "image": 'https://imgur.com/ol2c6gm', "description": "Description du snack"},
 }
 
 # Define the chef's chat ID
-CHEF_CHAT_ID =  ['1849539271', '5015099173']  # Replace with the actual chat ID of the chef
+CHEF_CHAT_ID = ['1849539271', '5015099173']  # Replace with the actual chat ID of the chef
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle the /start command by sending a welcome message."""
@@ -42,15 +45,8 @@ async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     media_group = []
     for item, details in menu.items():
         caption = f"{item} - DZD{details['price']}\n{details['description']}"
-        try:
-            media_group.append(InputMediaPhoto(media=details['image'], caption=caption))
-        except FileNotFoundError:
-            logger.error(f"Image file not found: {details['image']}")
-            continue
-    if media_group:
-        await context.bot.send_media_group(chat_id=chat_id, media=media_group)
-    else:
-        await context.bot.send_message(chat_id=chat_id, text="Désolé, il y a eu un problème de chargement des images du menu.")
+        media_group.append(InputMediaPhoto(media=details['image'], caption=caption))
+    await context.bot.send_media_group(chat_id=chat_id, media=media_group)
 
     buttons = [[InlineKeyboardButton(item, callback_data=item)] for item in menu.keys()]
     reply_markup = InlineKeyboardMarkup(buttons)
@@ -150,168 +146,122 @@ async def handle_add_note(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     buttons.append([InlineKeyboardButton("Ajouter plus de plats", callback_data='add_more')])
     reply_markup = InlineKeyboardMarkup(buttons)
     await update.message.reply_text(
-        f"Plats sélectionnés:\n{selected_items_text}\n\nTotal: DZD{context.user_data['prix_total']}\nCommentaire: {user_note}\n\nVous pouvez choisir plus de plats, ajouter un commentaire, ou cliquer sur 'Finaliser la commande' pour compléter votre commande.",
+        f"Plats sélectionnés:\n{selected_items_text}\n\nTotal: DZD{context.user_data['prix_total']}\nCommentaire: {user_note}\n\nVous pouvez choisir plus de plats ou cliquer sur 'Finaliser la commande' pour compléter votre commande.",
         reply_markup=reply_markup
     )
 
     return ADD_NOTE
 
-async def handle_add_more(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle the request to add more items to the order."""
-    query = update.callback_query
-    await query.answer()
-    logger.info("User requested to add more items")
-    await show_menu(update, context)
-    return MENU
-
 async def handle_finalize_order(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle the finalization of the order."""
+    """Handle finalizing the order."""
     query = update.callback_query
     await query.answer()
-    logger.info("User is finalizing order")
+    logger.info("Finalizing order")
 
-    context.user_data['state'] = NAME
-    await query.edit_message_text(text="Veuillez entrer votre nom :")
+    await query.edit_message_text(text="Merci pour votre commande! Veuillez entrer votre nom:")
+
     return NAME
 
-async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Handle user input based on the conversation state."""
-    user_input = update.message.text
-    user_state = context.user_data.get('state')
-    logger.info(f"Handling user input for state: {user_state}")
+async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle the user's input for their name."""
+    user_name = update.message.text
+    logger.info(f"User provided name: {user_name}")
+    context.user_data['name'] = user_name
 
-    if user_state == NAME:
-        context.user_data['name'] = user_input
-        await update.message.reply_text(f"Merci, {user_input}! Quelle est votre adresse?")
-        context.user_data['state'] = ADDRESS
-        return ADDRESS
-    elif user_state == ADDRESS:
-        context.user_data['address'] = user_input
-        await update.message.reply_text("Parfait ! Veuillez fournir votre numéro de téléphone.")
-        context.user_data['state'] = PHONE
-        return PHONE
-    elif user_state == PHONE:
-        context.user_data['phone'] = user_input
-        selected_items = context.user_data['plats_sélectionnés']
-        name = context.user_data['name']
-        address = context.user_data['address']
-        phone = context.user_data['phone']
-        total_price = context.user_data['prix_total']
-        note = context.user_data.get('note', 'Aucun commentaire fourni')
-        confirmation_message = (
-            f"Merci de confirmer votre commande :\n\n"
-            f"Plats:\n" + "\n".join([f"{item} (x{qty})" for item, qty in selected_items]) + "\n"
-            f"Prix total: DZD{total_price}\n"
-            f"Nom: {name}\n"
-            f"Adresse: {address}\n"
-            f"Téléphone: {phone}\n"
-            f"Ajoutez heure: {note}\n\n"
-            "Répondez avec /confirm pour passer la commande ou /cancel pour annuler."
-        )
-        await update.message.reply_text(confirmation_message)
-        context.user_data['state'] = CONFIRMATION
-        return CONFIRMATION
+    await update.message.reply_text("Veuillez entrer votre adresse:")
 
-async def handle_cancel(update: Update, context: CallbackContext) -> None:
-    try:
-        await update.message.reply_text("Commande annulée. Si vous souhaitez passer une nouvelle commande, utilisez la commande /menu.")
-        context.user_data.clear()
-    except Exception as e:
-        logger.error(f"Erreur lors de la gestion de l'annulation : {e}")
+    return ADDRESS
+
+async def handle_address(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle the user's input for their address."""
+    user_address = update.message.text
+    logger.info(f"User provided address: {user_address}")
+    context.user_data['address'] = user_address
+
+    await update.message.reply_text("Veuillez entrer votre numéro de téléphone:")
+
+    return PHONE
+
+async def handle_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle the user's input for their phone number."""
+    user_phone = update.message.text
+    logger.info(f"User provided phone number: {user_phone}")
+    context.user_data['phone'] = user_phone
+
+    selected_items_text = "\n".join([f"{item} (x{qty})" for item, qty in context.user_data['plats_sélectionnés']])
+    note = context.user_data.get('note', 'Aucun commentaire')
+    prix_total = context.user_data['prix_total']
+    order_summary = (
+        f"Nom: {context.user_data['name']}\n"
+        f"Adresse: {context.user_data['address']}\n"
+        f"Téléphone: {context.user_data['phone']}\n"
+        f"Plats commandés:\n{selected_items_text}\n"
+        f"Commentaire: {note}\n"
+        f"Total: DZD{prix_total}"
+    )
+    logger.info(f"Order summary: {order_summary}")
+
+    await update.message.reply_text(
+        f"Merci pour votre commande!\n\n{order_summary}\n\nUn membre de notre équipe vous contactera sous peu pour confirmer votre commande."
+    )
+
+    # Send the order to the chef
+    for chef_id in CHEF_CHAT_ID:
+        await context.bot.send_message(chat_id=chef_id, text=f"Nouvelle commande reçue:\n\n{order_summary}")
 
     return ConversationHandler.END
-async def handle_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    try:
-        user_input = update.message.text.lower()
-        logger.info(f"Received confirmation input: {user_input}")
 
-        if user_input == '/confirm':
-            # Retrieve all necessary information
-            selected_items = context.user_data.get('plats_sélectionnés', [])
-            name = context.user_data.get('name', 'Inconnu')
-            address = context.user_data.get('address', 'Inconnue')
-            phone = context.user_data.get('phone', 'Inconnu')
-            total_price = context.user_data.get('prix_total', 'Inconnu')
-            note = context.user_data.get('note', 'Aucun commentaire')
+async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle cancellation of the order."""
+    await update.message.reply_text("Commande annulée. Si vous souhaitez recommencer, utilisez la commande /menu.")
+    return ConversationHandler.END
 
-            # Format the order information
-            order_info = (
-                f"Nouvelle commande reçue !\n\n"
-                f"Plats:\n" + "\n".join([f"{item} (x{qty})" for item, qty in selected_items]) + "\n"
-                f"Prix total : DZD{total_price}\n"
-                f"Nom : {name}\n"
-                f"Adresse : {address}\n"
-                f"Téléphone : {phone}\n"
-                f"Commentaire : {note}"
-            )
+# Set up the Telegram bot application
+application = Application.builder().token(TOKEN).build()
 
-            # Send the order information to the chef
-            for chef_chat_id in CHEF_CHAT_ID:
-                try:
-                    chef_message = await context.bot.send_message(chat_id=chef_chat_id, text=order_info)
-                    logger.info(f"Order sent to chef (chat ID {chef_chat_id}): {chef_message.message_id}")
-                except Exception as e:
-                    logger.error(f"Error sending order to chef (chat ID {chef_chat_id}): {e}")
-
-            # Confirm the order with the user
-            confirmation_message = (
-                f"Votre commande a été reçue ! Nous livrerons à :\n"
-                f"Nom : {name}\n"
-                f"Adresse : {address}\n"
-                f"Téléphone : {phone}\n\n"
-                f"Merci pour votre commande ! Si vous souhaitez passer une nouvelle commande, utilisez la commande /menu."
-            )
-            user_message = await update.message.reply_text(confirmation_message)
-            logger.info(f"Confirmation sent to user: {user_message.message_id}")
-
-            # Clear user data after sending all messages
-            context.user_data.clear()
-            return ConversationHandler.END
-        elif user_input == '/cancel':
-            await update.message.reply_text("Commande annulée. Si vous souhaitez passer une nouvelle commande, utilisez la commande /menu.")
-            context.user_data.clear()
-            return ConversationHandler.END
-        else:
-            await update.message.reply_text("Veuillez répondre avec /confirm pour confirmer ou /cancel pour annuler.")
-            return CONFIRMATION
-    except Exception as e:
-        logger.error(f"Erreur lors de la confirmation : {e}")
-        await update.message.reply_text(f"Une erreur s'est produite : {e}")
-        return ConversationHandler.END
-
+# Create conversation handler with the states and handlers
 conv_handler = ConversationHandler(
     entry_points=[CommandHandler('menu', show_menu)],
     states={
         MENU: [CallbackQueryHandler(handle_menu_selection)],
         QUANTITY: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_quantity)],
         ADD_NOTE: [
-            CallbackQueryHandler(handle_remove_item, pattern=r'^remove_'),
+            CallbackQueryHandler(handle_remove_item, pattern='^remove_'),
             CallbackQueryHandler(handle_add_note_request, pattern='^add_note$'),
-            CallbackQueryHandler(handle_add_more, pattern='^add_more$'),
             CallbackQueryHandler(handle_finalize_order, pattern='^finalize$'),
+            CallbackQueryHandler(show_menu, pattern='^add_more$'),
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_add_note)
         ],
-        NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_input)],
-        ADDRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_input)],
-        PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_input)],
-        CONFIRMATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_confirmation)],
+        NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name)],
+        ADDRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_address)],
+        PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_phone)],
     },
-    fallbacks=[
-        CommandHandler('confirm', handle_confirmation),
-        CommandHandler('cancel', handle_cancel)
-    ]
+    fallbacks=[CommandHandler('cancel', handle_cancel)],
 )
-def main() -> None:
-    try:
-        application = ApplicationBuilder().token(TOKEN).build()
 
-        application.add_handler(conv_handler)
-        application.add_handler(CommandHandler('start', start))
+# Add the conversation handler to the application
+application.add_handler(CommandHandler('start', start))
+application.add_handler(conv_handler)
 
-        application.run_polling()
-        logger.info("Bot started!")
-    except Exception as e:
-        logger.error(f"Error starting the bot: {e}")
+# Set the webhook route for Flask
+@app.route(f'/{TOKEN}', methods=['POST'])
+def webhook():
+    """Process incoming updates from Telegram."""
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    asyncio.run(application.process_update(update))
+    return "ok"
+
+# Set up the webhook
+@app.route('/set_webhook', methods=['GET', 'POST'])
+def set_webhook():
+    """Set the webhook for the bot."""
+    webhook_url = f'https://api.telegram.org/frescofood_bot/{TOKEN}'  # Replace with your actual domain
+
+    success = asyncio.run(application.bot.set_webhook(webhook_url))
+    if success:
+        return "Webhook set successfully!"
+    else:
+        return "Failed to set webhook."
 
 if __name__ == '__main__':
-    main()
+    app.run(port=5000)
