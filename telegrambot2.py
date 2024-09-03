@@ -3,6 +3,7 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton, InputMe
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ConversationHandler, ContextTypes, MessageHandler, filters
 import logging
 import asyncio
+import os  # Import os module
 
 app = Flask(__name__)
 
@@ -12,6 +13,10 @@ logger = logging.getLogger(__name__)
 
 # Bot token (replace with your actual bot token)
 TOKEN = '6796101410:AAEEUbVjCcwBFsXex6PlfYg4rdRhoz0Rs98'
+
+@app.route('/')
+def home():
+    return "Welcome to the bot service!"
 
 # Define states for the conversation flow
 MENU, ADD_NOTE, QUANTITY, NAME, ADDRESS, PHONE, CONFIRMATION = range(7)
