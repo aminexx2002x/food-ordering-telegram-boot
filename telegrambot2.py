@@ -12,7 +12,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 # Bot token (replace with your actual bot token)
-TOKEN = '6796101410:AAEEUbVjCcwBFsXex6PlfYg4rdRhoz0Rs98'
+TOKEN = 'Your Token'
 
 @app.route('/')
 def home():
